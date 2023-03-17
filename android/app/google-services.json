@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "32034997029",
+    "project_id": "stock-vapes",
+    "storage_bucket": "stock-vapes.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:32034997029:android:64876c5608e911ab7890cc",
+        "android_client_info": {
+          "package_name": "com.example.stock_vapes"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "32034997029-nab8h6q9su35dvvlstq8kqdqjdj87rgh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDY3eSSjFDb_JriGCfqYIkvblTYeWYsZwA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "32034997029-nab8h6q9su35dvvlstq8kqdqjdj87rgh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
