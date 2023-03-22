@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
@@ -27,8 +29,16 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   Map<String, dynamic>? selectedVape;
   var stock = repositoryBase.collection("stock").get();
-
+  var bytes = <Uint8List>[];
+  var showShareButton = false;
   var vapeCardKey = GlobalKey();
+
+  @override
+  void initState() {
+    stock.then((value) => SchedulerBinding.instance.addPostFrameCallback(
+        ((timeStamp) => startScreenshotWork(context, value))));
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,71 +75,27 @@ class _HomeState extends State<Home> {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 8.0),
                   ),
-                  if (selectedVape == null)
+                  if (selectedVape == null && showShareButton)
                     FutureBuilder(
                         future: stock,
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return Container();
                           return InkWell(
                             onTap: () async {
-                              final controller = ScreenshotController();
-                              print(vapeCardKey.currentContext!.size!.height);
-                              var bytes = await controller.captureFromWidget(
-                                  MediaQuery(
-                                    data: MediaQueryData(
-                                        size: Size(
-                                            vapeCardKey
-                                                .currentContext!.size!.width,
-                                            vapeCardKey.currentContext!.size!
-                                                    .height *
-                                                snapshot.data!.docs.length *
-                                                10)),
-                                    child: SingleChildScrollView(
-                                      child: SizedBox(
-                                        width: 300,
-                                        height: vapeCardKey
-                                                .currentContext!.size!.height *
-                                            snapshot.data!.docs.length *
-                                            10,
-                                        child: LayoutBuilder(
-                                            builder: (_, constraints) {
-                                          return Theme(
-                                            data: Theme.of(context),
-                                            child: Scaffold(
-                                              body: Column(
-                                                children: [
-                                                  const Padding(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 20)),
-                                                  for (var e
-                                                      in snapshot.data!.docs)
-                                                    VapeCard(
-                                                      data: e.data(),
-                                                      screenshot: true,
-                                                    )
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ),
-                                    ),
-                                  ),
-                                  pixelRatio:
-                                      MediaQuery.of(context).devicePixelRatio);
                               final box =
                                   // ignore: use_build_context_synchronously
                                   context.findRenderObject() as RenderBox?;
 
                               Share.shareXFiles(
-                                [
-                                  XFile.fromData(
-                                    bytes,
-                                    name: 'produtos.png',
-                                    mimeType: 'image/png',
-                                  ),
-                                ],
+                                bytes
+                                    .map(
+                                      (e) => XFile.fromData(
+                                        e,
+                                        name: 'produtos.png',
+                                        mimeType: 'image/png',
+                                      ),
+                                    )
+                                    .toList(),
                                 sharePositionOrigin:
                                     box!.localToGlobal(Offset.zero) & box.size,
                               );
@@ -138,7 +104,9 @@ class _HomeState extends State<Home> {
                                 Directory dir = await getTemporaryDirectory();
                                 dir.deleteSync(recursive: true);
                                 dir.create();
-                              } catch (e) {}
+                              } catch (e) {
+                                print(e);
+                              }
                             },
                             child: const Icon(
                               CupertinoIcons.share,
@@ -195,6 +163,48 @@ class _HomeState extends State<Home> {
         ),
       ),
     );
+  }
+
+  Future<void> startScreenshotWork(BuildContext context,
+      QuerySnapshot<Map<String, dynamic>> snapshot) async {
+    final controller = ScreenshotController();
+    var currentScreen = MediaQuery.of(context).size;
+
+    var maxCardPerPage =
+        (currentScreen.height / vapeCardKey.currentContext!.size!.height)
+            .floor();
+    var pages = (snapshot.size / maxCardPerPage).ceil();
+
+    for (var i = 0; i < pages; i++) {
+      bytes.add(await controller.captureFromWidget(
+          MediaQuery(
+            data: MediaQuery.of(context),
+            child: Theme(
+              data: Theme.of(context),
+              child: Scaffold(
+                body: SingleChildScrollView(
+                  child: Column(
+                    //direction: Axis.horizontal,
+                    children: [
+                      for (var j = 0;
+                          j < maxCardPerPage &&
+                              j + maxCardPerPage * i < snapshot.size;
+                          j++)
+                        VapeCard(
+                          data: snapshot.docs[j + maxCardPerPage * i].data(),
+                          screenshot: true,
+                        )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          pixelRatio: MediaQuery.of(context).devicePixelRatio));
+    }
+    setState(() {
+      showShareButton = true;
+    });
   }
 
   Widget buildCardWrap(
